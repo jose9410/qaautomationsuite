@@ -1,0 +1,23 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+
+## Angular
+ClientApp/node_modules/
+ClientApp/dist/
+ClientApp/.angular/
+
+## Compiled output (served by .NET)
+wwwroot/
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## Sensitive
+appsettings.Development.json
+appsettings.json

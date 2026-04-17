@@ -1,0 +1,181 @@
+<div class="app-container">
+  <!-- ═══ Header ═══ -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo-area">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1 class="app-title">QA Automation Suite</h1>
+          <p class="app-subtitle">Automatización de Reprocesos en Lote</p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span class="badge-dot"></span>
+        Sistema Local
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- ═══ Formulario ═══ -->
+    <section class="form-section" *ngIf="!jobId">
+      <div class="section-header">
+        <h2>🎯 Configurar Aplicación</h2>
+        <p>Seleccione el proceso y la fecha de reproceso.</p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()" class="process-form">
+
+        <!-- ── Proceso ── -->
+        <div class="process-selector">
+          <div class="form-group full-width">
+            <label for="procesoSelector">SELECCIONAR APLICACIÓN</label>
+            <div class="select-wrapper">
+              <select
+                id="procesoSelector"
+                [(ngModel)]="aplicacionSeleccionada"
+                name="procesoSelector"
+                class="form-input form-select"
+              >
+                <option value="" disabled selected>— Seleccione una aplicación configurada —</option>
+                <option *ngFor="let a of catalogoAplicaciones" [value]="a.nombre">
+                  {{ a.nombre }}
+                </option>
+              </select>
+              <span class="select-arrow">▼</span>
+            </div>
+            <small class="form-hint" *ngIf="catalogoLoading">⏳ Cargando catálogo...</small>
+            <small class="form-hint" *ngIf="!catalogoLoading && subProcesosDisponibles.length === 0"
+                   style="color: var(--color-error)">
+              ⚠ No hay procesos configurados. Revise la sección "Aplicaciones" en appsettings.json.
+            </small>
+          </div>
+        </div>
+
+        <!-- Error global -->
+        <div class="error-banner" *ngIf="errorMessage">
+          <span class="error-icon">⚠</span>
+          {{ errorMessage }}
+          <button class="error-close" type="button" (click)="errorMessage = null">✕</button>
+        </div>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="isSubmitting || !aplicacionSeleccionada"
+          [class.loading]="isSubmitting"
+        >
+          <span class="btn-content" *ngIf="!isSubmitting">
+            <span class="btn-icon">🚀</span>
+            Iniciar Automatización
+          </span>
+          <span class="btn-content" *ngIf="isSubmitting">
+            <span class="spinner"></span>
+            Iniciando...
+          </span>
+        </button>
+      </form>
+    </section>
+
+    <!-- ═══ Panel de Estado ═══ -->
+    <section class="status-section" *ngIf="jobId">
+      <div class="section-header">
+        <h2>📡 Aplicación en Ejecución</h2>
+        <p>
+          Job ID: <code class="job-id">{{ jobId }}</code>
+          <span class="duration" *ngIf="jobState">· {{ getDuration() }}</span>
+        </p>
+      </div>
+
+      <!-- Timeline de pasos -->
+      <div class="timeline">
+        <div
+          *ngFor="let step of steps; let i = index"
+          class="timeline-step"
+          [class.completed]="isStepCompleted(i)"
+          [class.active]="isStepActive(i)"
+          [class.error]="jobState?.status === 'Error' && isStepActive(i)"
+        >
+          <div class="step-indicator">
+            <div class="step-circle">
+              <span *ngIf="isStepCompleted(i) && !isStepActive(i)">✓</span>
+              <span *ngIf="isStepActive(i) && jobState?.status !== 'Completado' && jobState?.status !== 'Error'" class="step-spinner"></span>
+              <span *ngIf="isStepActive(i) && jobState?.status === 'Completado'">✓</span>
+              <span *ngIf="isStepActive(i) && jobState?.status === 'Error'">✕</span>
+              <span *ngIf="!isStepCompleted(i) && !isStepActive(i)">{{ i + 1 }}</span>
+            </div>
+            <div class="step-line" *ngIf="i < steps.length - 1"></div>
+          </div>
+          <div class="step-content">
+            <span class="step-icon">{{ step.icon }}</span>
+            <span class="step-label">{{ step.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensaje de estado actual -->
+      <div class="status-message" *ngIf="jobState as activeJob">
+        <div
+          class="status-badge"
+          [style.background]="activeJob.status === 'Error' ? 'var(--color-error-glow)' :
+                              activeJob.status === 'Completado' ? 'var(--color-success-glow)' :
+                              'var(--color-accent-glow)'"
+        >
+          <span>{{ statusInfo[activeJob.status].icon }}</span>
+          <span>{{ statusInfo[activeJob.status].label }}</span>
+        </div>
+        <p class="status-text">{{ activeJob.mensaje }}</p>
+      </div>
+
+      <!-- Panel de Resultados -->
+      <div class="results-panel" *ngIf="jobState?.status === 'Completado' && jobState as resultJob">
+        <h3 class="results-title">✅ Proceso Completado</h3>
+        <div class="metrics-grid">
+          <div class="metric-card success">
+            <div class="metric-value" style="font-size: 1.4rem; text-align: center;">{{ resultJob.nombreProceso }}</div>
+            <div class="metric-label">Proceso Ejecutado</div>
+          </div>
+          <div class="metric-card accent">
+            <div class="metric-value" style="font-size: 1.4rem; text-align: center;">
+              {{ getDurationMinutos() }}
+            </div>
+            <div class="metric-label">Duración Total</div>
+          </div>
+        </div>
+        <p class="status-text" style="margin-top: 12px; font-weight: 500;">{{ resultJob.mensaje }}</p>
+        
+        <!-- Lista de procesos ejecutados -->
+        <ul *ngIf="resultJob.detalle && resultJob.detalle.length > 0" class="process-list" style="margin-top: 16px; padding: 12px 18px; background: rgba(0,0,0,0.03); border-radius: 8px; list-style-type: none;">
+          <li *ngFor="let item of resultJob.detalle" style="padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 0.9rem; color: var(--text-secondary);">
+            {{ item }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Panel de Error -->
+      <div class="error-panel" *ngIf="jobState?.status === 'Error' && jobState as errorJob">
+        <div class="error-content">
+          <span class="error-big-icon">❌</span>
+          <h3>Error en la Aplicación</h3>
+          <p>{{ errorJob.errorDetalle }}</p>
+        </div>
+      </div>
+
+      <!-- Botón: Nueva Aplicación -->
+      <button
+        class="btn-secondary"
+        type="button"
+        (click)="resetForm()"
+        *ngIf="jobState?.status === 'Completado' || jobState?.status === 'Error'"
+      >
+        <span class="btn-icon">🔄</span>
+        Nueva Aplicación
+      </button>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    QA Automation Suite · Automatización RPA Local · Sin licencias de terceros
+  </footer>
+</div>
