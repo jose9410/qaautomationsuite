@@ -37,4 +37,4 @@ Una potente suite local de **Robot Process Automation (RPA)** diseñada específ
 - `app.component.ts`: Front controller de Angular para el sistema de estados.
 
 ---
-*Desarrollado para automatización de ciclo y cruces en Koncilia automatizado.*
+*Desarrollado para automatización de ciclo y cruces.*
